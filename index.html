@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ai-Pong WebX – Game of the Year! 🏓</title>
+    <style>
+        body { margin: 0; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: monospace; color: #fff; }
+        canvas { border: 2px solid #fff; background: #000; image-rendering: pixelated; }
+        #info { text-align: center; margin-bottom: 10px; }
+        #scores { font-size: 24px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <div>W/S (left paddle) | ↑↓ (right paddle) | R (reset) | First to 11 wins!</div>
+        <div>Made with ❤️ by Grok (xAI) – Pure JS Pong (1972 Reborn)</div>
+    </div>
+    <canvas id="canvas" width="800" height="600"></canvas>
+    <div id="scores"></div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const scoresEl = document.getElementById('scores');
+
+        // Game state (exact C logic ported)
+        const SCREEN_WIDTH = 800, SCREEN_HEIGHT = 600;
+        const PADDLE_WIDTH = 15, PADDLE_HEIGHT = 80, BALL_SIZE = 12;
+        const PADDLE_SPEED = 8, BALL_SPEED_X = 7, BALL_SPEED_Y = 7, WINNING_SCORE = 11;
+
+        let leftPaddle = { x: 20, y: SCREEN_HEIGHT/2 - PADDLE_HEIGHT/2 };
+        let rightPaddle = { x: SCREEN_WIDTH - 20 - PADDLE_WIDTH, y: SCREEN_HEIGHT/2 - PADDLE_HEIGHT/2 };
+        let ball = { x: SCREEN_WIDTH/2 - BALL_SIZE/2, y: SCREEN_HEIGHT/2 - BALL_SIZE/2, vx: BALL_SPEED_X, vy: BALL_SPEED_Y };
+        let scoreLeft = 0, scoreRight = 0;
+        let keys = {};
+        let gameRunning = true;
+
+        // 7-segment digits (exact from C – 8x8 bitmap)
+        const digits = [
+            [0x3C,0x42,0x42,0x42,0x42,0x42,0x42,0x3C], // 0
+            [0x18,0x38,0x18,0x18,0x18,0x18,0x18,0x7E], // 1
+            [0x7E,0x02,0x02,0x7C,0x40,0x40,0x40,0x7E], // 2
+            [0x7E,0x02,0x02,0x3C,0x02,0x02,0x02,0x7E], // 3
+            [0x18,0x28,0x48,0x7E,0x08,0x08,0x08,0x08], // 4
+            [0x7E,0x40,0x40,0x7C,0x02,0x02,0x02,0x7E], // 5
+            [0x3C,0x42,0x42,0x7E,0x42,0x42,0x42,0x3C], // 6
+            [0x7E,0x02,0x04,0x08,0x10,0x20,0x40,0x40], // 7
+            [0x3C,0x42,0x42,0x3C,0x42,0x42,0x42,0x3C], // 8
+            [0x3C,0x42,0x42,0x3E,0x02,0x02,0x02,0x7E]  // 9
+        ];
+        const FONT_SCALE = 8;
+
+        function drawDigit(x, y, digit) {
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    if (digits[digit][row] & (1 << (7 - col))) {
+                        ctx.fillStyle = '#fff';
+                        ctx.fillRect(x + col * FONT_SCALE, y + row * FONT_SCALE, FONT_SCALE, FONT_SCALE);
+                    }
+                }
+            }
+        }
+
+        function drawScore(score, xStart) {
+            let buf = score.toString();
+            let x = xStart;
+            for (let i = 0; i < buf.length; i++) {
+                drawDigit(x, 50, parseInt(buf[i]));
+                x += 8 * FONT_SCALE + 10;
+            }
+        }
+
+        function collides(a, b) {
+            return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+        }
+
+        function resetBall() {
+            ball.x = SCREEN_WIDTH / 2 - BALL_SIZE / 2;
+            ball.y = SCREEN_HEIGHT / 2 - BALL_SIZE / 2;
+            ball.vx = ball.vx > 0 ? BALL_SPEED_X : -BALL_SPEED_X;
+            ball.vy = (Math.random() * (BALL_SPEED_Y * 2 + 1)) - BALL_SPEED_Y;
+        }
+
+        function update() {
+            if (!gameRunning) return;
+
+            // Input
+            if (keys['w'] || keys['W']) leftPaddle.y = Math.max(0, leftPaddle.y - PADDLE_SPEED);
+            if (keys['s'] || keys['S']) leftPaddle.y = Math.min(SCREEN_HEIGHT - PADDLE_HEIGHT, leftPaddle.y + PADDLE_SPEED);
+            if (keys['ArrowUp']) rightPaddle.y = Math.max(0, rightPaddle.y - PADDLE_SPEED);
+            if (keys['ArrowDown']) rightPaddle.y = Math.min(SCREEN_HEIGHT - PADDLE_HEIGHT, rightPaddle.y + PADDLE_SPEED);
+
+            // Ball
+            ball.x += ball.vx;
+            ball.y += ball.vy;
+
+            // Walls
+            if (ball.y <= 0 || ball.y + BALL_SIZE >= SCREEN_HEIGHT) {
+                ball.vy = -ball.vy;
+                ball.x += ball.vx;
+            }
+
+            // Collisions (angle bounce)
+            let leftRect = {x: leftPaddle.x, y: leftPaddle.y, w: PADDLE_WIDTH, h: PADDLE_HEIGHT};
+            let rightRect = {x: rightPaddle.x, y: rightPaddle.y, w: PADDLE_WIDTH, h: PADDLE_HEIGHT};
+            let ballRect = {x: ball.x, y: ball.y, w: BALL_SIZE, h: BALL_SIZE};
+            if (collides(ballRect, leftRect)) {
+                ball.vx = BALL_SPEED_X;
+                ball.vy = ((ball.y + BALL_SIZE / 2 - (leftPaddle.y + PADDLE_HEIGHT / 2)) / (PADDLE_HEIGHT / 2)) * BALL_SPEED_Y;
+            }
+            if (collides(ballRect, rightRect)) {
+                ball.vx = -BALL_SPEED_X;
+                ball.vy = ((ball.y + BALL_SIZE / 2 - (rightPaddle.y + PADDLE_HEIGHT / 2)) / (PADDLE_HEIGHT / 2)) * BALL_SPEED_Y;
+            }
+
+            // Score
+            if (ball.x < 0) { scoreRight++; resetBall(); }
+            else if (ball.x > SCREEN_WIDTH) { scoreLeft++; resetBall(); }
+
+            // Win
+            if (scoreLeft >= WINNING_SCORE || scoreRight >= WINNING_SCORE) gameRunning = false;
+        }
+
+        function render() {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+            // Dotted line
+            ctx.fillStyle = '#fff';
+            for (let y = 0; y < SCREEN_HEIGHT; y += 20) {
+                ctx.fillRect(SCREEN_WIDTH/2 - 1, y, 2, 10);
+            }
+
+            // Paddles & ball
+            ctx.fillRect(leftPaddle.x, leftPaddle.y, PADDLE_WIDTH, PADDLE_HEIGHT);
+            ctx.fillRect(rightPaddle.x, rightPaddle.y, PADDLE_WIDTH, PADDLE_HEIGHT);
+            ctx.fillRect(ball.x, ball.y, BALL_SIZE, BALL_SIZE);
+
+            // Scores (on canvas + DOM)
+            drawScore(scoreLeft, 100);
+            drawScore(scoreRight, SCREEN_WIDTH - 200);
+            scoresEl.textContent = `${scoreLeft} - ${scoreRight}`;
+        }
+
+        function gameLoop() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Events
+        document.addEventListener('keydown', e => {
+            keys[e.key] = true;
+            if (e.key === 'r' || e.key === 'R') {
+                scoreLeft = scoreRight = 0;
+                gameRunning = true;
+                resetBall();
+            }
+        });
+        document.addEventListener('keyup', e => keys[e.key] = false);
+
+        // Start!
+        gameLoop();
+    </script>
+</body>
+</html>
