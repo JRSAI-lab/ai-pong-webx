@@ -8,7 +8,7 @@ The Game of the Year, built with pure C, SDL2, and Emscripten. Play in your brow
 - First to 11 points wins. ESC to quit.
 
 ## Live Demo
-[Play Now!](https://JRSAI-lab.io/ai-pong-webx/)
+[Play Now!](https://JRSAI-lab.github.io/ai-pong-webx/)
 
 ## Build It Yourself
 1. Install Emscripten: Follow https://emscripten.org/docs/getting_started/downloads.html
