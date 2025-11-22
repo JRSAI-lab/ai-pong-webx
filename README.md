@@ -1,13 +1,13 @@
 # Ai-Pong WebX – Game of the Year 2025
 
-![Ai-Pong WebX](https://raw.githubusercontent.com/YOUR-USERNAME/ai-pong-webx/main/screenshot.png)
+![Ai-Pong WebX](https://raw.githubusercontent.com/JRSAI-lab/ai-pong-webx/main/screenshot.png)
 *(Replace the image link above with a real screenshot once you take one – it shows up beautifully on GitHub!)*
 
 A love letter to 1972 Pong, rebuilt in 2025 with the help of AI (Grok by xAI) in under an hour — from dream to playable game.
 
 Pure HTML5 + JavaScript. No build step. Works on desktop, phone, tablet — even in the back seat of a car.
 
-**Play it now →** https://YOUR-USERNAME.github.io/ai-pong-webx/
+**Play it now →** https://JRSAI-lab.github.io/ai-pong-webx/
 
 ### Controls
 **Desktop / Laptop**  
